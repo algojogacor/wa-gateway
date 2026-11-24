@@ -1,5 +1,6 @@
 import { createServer, type Server, type Socket } from 'node:net';
-import { unlinkSync } from 'node:fs';
+import { mkdirSync, unlinkSync } from 'node:fs';
+import { dirname } from 'node:path';
 import { pino } from 'pino';
 import { BaileysOwner } from './baileys.js';
 import { ConsumerConnection, ConsumerRegistry } from './consumers.js';
@@ -9,7 +10,7 @@ import type { GatewayEvent } from './protocol.js';
 
 const log = pino({ level: process.env.WA_LOG_LEVEL ?? 'info', base: { mod: 'gateway' } });
 
-const SOCKET_PATH = process.env.WA_SOCKET_PATH ?? '/run/wa-gateway.sock';
+const SOCKET_PATH = process.env.WA_SOCKET_PATH ?? 'run/wa-gateway.sock';
 const AUTH_DIR = process.env.WA_AUTH_DIR ?? './auth_state';
 const FLASHPEAK_GROUP_JID = process.env.WA_FLASHPEAK_GROUP_JID;
 const ORGANIZER_JID = process.env.WA_ORGANIZER_JID;
@@ -136,6 +137,7 @@ async function main(): Promise<void> {
     conn.start();
   });
 
+  mkdirSync(dirname(SOCKET_PATH), { recursive: true }); // relative default resolves against cwd
   try {
     unlinkSync(SOCKET_PATH);
   } catch {
