@@ -6,7 +6,8 @@ import makeWASocket, {
   type ConnectionState,
   type WAMessage,
 } from '@whiskeysockets/baileys';
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import qrcodeTerminal from 'qrcode-terminal';
 
 export type BaileysEvent = {
@@ -42,6 +43,36 @@ export class BaileysOwner {
     return this.sock !== null && this.stopping === false;
   }
 
+  /**
+   * A pairing attempt that issued a code but never got registered leaves
+   * creds with pairingCode consumed + registered false; WhatsApp answers
+   * 401 forever on those. Detect and wipe so a plain `pm2 restart
+   * wa-gateway` always yields a FRESH pairing code (the owner's refresh
+   * path when a code expires before it can be entered).
+   */
+  private wipeStaleHalfPair(): void {
+    try {
+      const credsPath = join(this.authDir, 'creds.json');
+      if (!existsSync(credsPath)) return;
+      const creds = JSON.parse(readFileSync(credsPath, 'utf8')) as {
+        registered?: boolean;
+        pairingCode?: unknown;
+        me?: unknown;
+      };
+      const halfPaired = creds.registered !== true && 'pairingCode' in creds && creds.me;
+      if (halfPaired) {
+        this.log('stale half-paired creds detected; wiping auth_state for a fresh pairing');
+        for (const f of readdirSync(this.authDir)) {
+          if (f === 'creds.json' || f.startsWith('pre-key') || f === 'session') {
+            rmSync(join(this.authDir, f), { force: true });
+          }
+        }
+      }
+    } catch (err) {
+      this.log(`half-pair check failed (continuing): ${String(err).slice(0, 80)}`);
+    }
+  }
+
   /** Deferred pairing-code request: fires once the first QR arrives. */
   requestPairingAfterQr(number: string, onCode: (code: string) => void): void {
     this.pairingAfterStart = { number, onCode };
@@ -49,6 +80,7 @@ export class BaileysOwner {
 
   async start(): Promise<WASocket> {
     if (!existsSync(this.authDir)) mkdirSync(this.authDir, { recursive: true, mode: 0o700 });
+    this.wipeStaleHalfPair();
     const { state, saveCreds } = await useMultiFileAuthState(this.authDir);
     const { version } = await fetchLatestBaileysVersion();
 
