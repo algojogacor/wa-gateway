@@ -1,5 +1,5 @@
 import { createServer, type Server, type Socket } from 'node:net';
-import { mkdirSync, unlinkSync } from 'node:fs';
+import { mkdirSync, unlinkSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { pino } from 'pino';
 import { BaileysOwner } from './baileys.js';
@@ -71,7 +71,10 @@ async function main(): Promise<void> {
       }
     },
     (line) => log.warn(line),
-    (code) => log.info({ pairingCode: code }, 'pairing code issued'),
+    (code) => {
+      log.info({ pairingCode: code }, 'pairing code issued');
+      void writeFileSync('./PAIRING_CODE.txt', `${new Date().toISOString()}\n${code}\n`);
+    },
   );
 
   const server: Server = createServer((socket: Socket) => {
