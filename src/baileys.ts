@@ -29,6 +29,7 @@ export type BaileysEvent = {
 export class BaileysOwner {
   private sock: WASocket | null = null;
   private stopping = false;
+  private pairingAfterStart: { number: string; onCode: (code: string) => void } | null = null;
 
   constructor(
     private readonly authDir: string,
@@ -39,6 +40,11 @@ export class BaileysOwner {
 
   get isConnected(): boolean {
     return this.sock !== null && this.stopping === false;
+  }
+
+  /** Deferred pairing-code request: fires once the first QR arrives. */
+  requestPairingAfterQr(number: string, onCode: (code: string) => void): void {
+    this.pairingAfterStart = { number, onCode };
   }
 
   async start(): Promise<WASocket> {
@@ -68,6 +74,23 @@ export class BaileysOwner {
         void writeFileSync('./PAIRING_QR.txt', `${new Date().toISOString()}
 ${qr}
 `);
+        // Baileys 7: pairing-code requests are only valid once the QR/ws
+        // link is live; asking earlier throws 'Connection Closed'.
+        if (this.pairingAfterStart) {
+          const { number, onCode } = this.pairingAfterStart;
+          this.pairingAfterStart = null;
+          void sock
+            .requestPairingCode(number)
+            .then((code) => {
+              if (code) {
+                onCode(code);
+                void writeFileSync('./PAIRING_CODE.txt', `${new Date().toISOString()}
+${code}
+`);
+              }
+            })
+            .catch((err) => this.log(`pairing code request failed: ${String(err).slice(0, 100)}`));
+        }
       }
       if (pairingCode && this.onPairingCode) this.onPairingCode(pairingCode);
       if (connection === 'open') {

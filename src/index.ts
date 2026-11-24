@@ -181,14 +181,17 @@ async function main(): Promise<void> {
 
   // Pairing-code registration keeps the owner-driven flow identical to the
   // old bots: number → code → user enters it once, session belongs to gateway.
-  // Transient WA-side failures (Connection Closed during the first handshake)
-  // must not kill the process: retry the owner start with backoff.
+  // Baileys 7: requestPairingCode must be called only after the first `qr`
+  // event arrives (the ws link must be live); asking earlier throws
+  // 'Connection Closed'. The owner emits pairing codes via onPairingCode
+  // once the QR arrives.
   for (let attempt = 1; ; attempt++) {
     try {
       const sock = await owner.start();
       if (PAIRING_NUMBER && !sock.authState?.creds?.registered) {
-        const code = (await sock.requestPairingCode(PAIRING_NUMBER)) ?? undefined;
-        log.warn({ pairingCode: code }, 'PAIRING CODE — enter in WhatsApp > Perangkat Tertaut');
+        owner.requestPairingAfterQr(PAIRING_NUMBER, (code: string) => {
+          log.warn({ pairingCode: code }, 'PAIRING CODE — enter in WhatsApp > Perangkat Tertaut');
+        });
       }
       break;
     } catch (err) {
