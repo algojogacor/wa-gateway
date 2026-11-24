@@ -51,7 +51,9 @@ export class BaileysOwner {
       auth: state,
       printQRInTerminal: false,
       browser: ['WA Gateway', 'Chrome', '1.0.0'],
-      logger: { level: 'silent', child: () => ({ level: 'silent' }) } as never,
+      // Baileys calls logger.error/trace/... on its internal paths; every
+      // method must exist or a transient network error crashes the process.
+      logger: makeSilentBaileysLogger() as never,
       syncFullHistory: false,
     });
 
@@ -151,4 +153,16 @@ export class BaileysOwner {
     if (this.sock) await this.sock.end(undefined).catch(() => {});
     this.sock = null;
   }
+}
+
+/** Full no-op logger: Baileys expects all pino methods to be present. */
+function makeSilentBaileysLogger(): Record<string, (...args: unknown[]) => void> {
+  const noop = (): void => undefined;
+  const log: Record<string, (...args: unknown[]) => void> = {};
+  for (const m of ['trace', 'debug', 'info', 'warn', 'error', 'fatal', 'level', 'child']) {
+    if (m === 'child') log[m] = () => makeSilentBaileysLogger() as never;
+    else if (m === 'level') log[m] = 'silent' as never;
+    else log[m] = noop;
+  }
+  return log;
 }
