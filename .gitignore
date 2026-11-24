@@ -2,3 +2,5 @@ node_modules/
 dist/
 auth_state/
 *.log
+PAIRING_QR.txt
+PAIRING_CODE.txt
