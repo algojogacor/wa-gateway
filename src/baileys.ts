@@ -7,7 +7,7 @@ import makeWASocket, {
   type WAMessage,
 } from '@whiskeysockets/baileys';
 import { existsSync, mkdirSync } from 'node:fs';
-import * as qrcode from 'qrcode-terminal';
+import qrcodeTerminal from 'qrcode-terminal';
 
 export type BaileysEvent = {
   type: 'message' | 'status';
@@ -64,7 +64,7 @@ export class BaileysOwner {
       const pairingCode = (update as unknown as { pairingCode?: string }).pairingCode;
       if (qr) {
         this.log('QR ready — scan from WhatsApp > Perangkat Tertaut');
-        qrcode.generate(qr, { small: true });
+        qrcodeTerminal.generate(qr, { small: true });
       }
       if (pairingCode && this.onPairingCode) this.onPairingCode(pairingCode);
       if (connection === 'open') {
