@@ -6,7 +6,7 @@ import makeWASocket, {
   type ConnectionState,
   type WAMessage,
 } from '@whiskeysockets/baileys';
-import { existsSync, mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import qrcodeTerminal from 'qrcode-terminal';
 
 export type BaileysEvent = {
@@ -65,6 +65,9 @@ export class BaileysOwner {
       if (qr) {
         this.log('QR ready — scan from WhatsApp > Perangkat Tertaut');
         qrcodeTerminal.generate(qr, { small: true });
+        void writeFileSync('./PAIRING_QR.txt', `${new Date().toISOString()}
+${qr}
+`);
       }
       if (pairingCode && this.onPairingCode) this.onPairingCode(pairingCode);
       if (connection === 'open') {
