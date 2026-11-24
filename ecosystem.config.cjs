@@ -14,7 +14,7 @@ module.exports = {
       autorestart: true,
       env: {
         NODE_ENV: 'production',
-        WA_SOCKET_PATH: '/run/wa-gateway.sock',
+        WA_SOCKET_PATH: '/home/azureuser/run/wa-gateway.sock',
         WA_AUTH_DIR: './auth_state',
         WA_FLASHPEAK_GROUP_JID: '120363412423738009@g.us',
         WA_LOG_LEVEL: 'warn',
@@ -33,7 +33,7 @@ module.exports = {
       env: {
         NODE_ENV: 'production',
         WA_TRANSPORT: 'gateway',
-        WA_GATEWAY_SOCKET: '/run/wa-gateway.sock',
+        WA_GATEWAY_SOCKET: '/home/azureuser/run/wa-gateway.sock',
       },
     },
     {
@@ -51,7 +51,7 @@ module.exports = {
       env: {
         NODE_ENV: 'production',
         WA_TRANSPORT: 'gateway',
-        WA_SOCKET_PATH: '/run/wa-gateway.sock',
+        WA_SOCKET_PATH: '/home/azureuser/run/wa-gateway.sock',
       },
     },
   ],
