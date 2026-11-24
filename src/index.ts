@@ -181,10 +181,25 @@ async function main(): Promise<void> {
 
   // Pairing-code registration keeps the owner-driven flow identical to the
   // old bots: number → code → user enters it once, session belongs to gateway.
-  const sock = await owner.start();
-  if (PAIRING_NUMBER && !sock.authState?.creds?.registered) {
-    const code = (await sock.requestPairingCode(PAIRING_NUMBER)) ?? undefined;
-    log.warn({ pairingCode: code }, 'PAIRING CODE — enter in WhatsApp > Perangkat Tertaut');
+  // Transient WA-side failures (Connection Closed during the first handshake)
+  // must not kill the process: retry the owner start with backoff.
+  for (let attempt = 1; ; attempt++) {
+    try {
+      const sock = await owner.start();
+      if (PAIRING_NUMBER && !sock.authState?.creds?.registered) {
+        const code = (await sock.requestPairingCode(PAIRING_NUMBER)) ?? undefined;
+        log.warn({ pairingCode: code }, 'PAIRING CODE — enter in WhatsApp > Perangkat Tertaut');
+      }
+      break;
+    } catch (err) {
+      const msg = String(err);
+      log.warn({ err: msg.slice(0, 120), attempt }, 'wa start failed; retrying in 5s');
+      if (attempt >= 60) {
+        log.error({ err: msg.slice(0, 200) }, 'wa start failed after 60 attempts; giving up');
+        process.exit(1);
+      }
+      await new Promise((r) => setTimeout(r, 5_000));
+    }
   }
 }
 
