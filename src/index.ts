@@ -1,5 +1,5 @@
 import { createServer, type Server, type Socket } from 'node:net';
-import { mkdirSync, unlinkSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { pino } from 'pino';
 import { BaileysOwner } from './baileys.js';
@@ -14,7 +14,20 @@ const SOCKET_PATH = process.env.WA_SOCKET_PATH ?? 'run/wa-gateway.sock';
 const AUTH_DIR = process.env.WA_AUTH_DIR ?? './auth_state';
 const FLASHPEAK_GROUP_JID = process.env.WA_FLASHPEAK_GROUP_JID;
 const ORGANIZER_JID = process.env.WA_ORGANIZER_JID;
-const PAIRING_NUMBER = process.env.WA_PAIRING_NUMBER;
+const PAIRING_NUMBER =
+  process.env.WA_PAIRING_NUMBER ??
+  (() => {
+    // Optional single source of truth on the VM: bot-prime's .env holds the
+    // number to pair. Missing file → undefined (QR-only flow).
+    try {
+      const envLine = readFileSync('/home/azureuser/bot-prime/.env', 'utf8')
+        .split('\n')
+        .find((l) => l.startsWith('OMAK_PAIRING_NUMBER='));
+      return envLine?.split('=')[1]?.trim();
+    } catch {
+      return undefined;
+    }
+  })();
 
 /** Extract conversational text from a Baileys proto message (best-effort). */
 function extractText(m: {
